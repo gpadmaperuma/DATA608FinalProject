@@ -1,0 +1,143 @@
+---
+title: "DATA 608-Final Project"
+author: "Don Padmaperuma"
+date: "12/9/2020"
+output: 
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(plyr)
+library(funModeling)
+```
+
+## Overview: MTA Performnce data: Individual Subway Lines
+
+NYC Subway is widely used transportation method in the New York City. Many have mixed opinions about NYC Subway performances. This project will analyze its performance and give us an idea why commuters have mixed opinion about Subway performance. These data are available to download at http://web.mta.info/developers/developer-data-terms.html#data as a zip file. I am only using the Performance_NYCT.csv data set that comes with that zip file that is uploaded into my Github repository for this project.I will be focusing on the On Time Performances (OTP) subway data for this project analysis.
+
+## About the data
+
+```{r}
+# Load the full dataset
+data<- read.csv("https://raw.githubusercontent.com/gpadmaperuma/DATA608FinalProject/main/Performance_NYCT.csv", header=TRUE, check.names = FALSE)
+
+# subsetting the data to only pull out the OTP for individual subway lines
+otp <-data[ which(data$PARENT_SEQ=='391690'), ]
+
+head(otp)
+```
+
+```{r}
+# remove columns that are not needed for this analysis
+otp<- otp[c(-1:-3, -5:-10)]
+
+# change int months to string months
+otp$PERIOD_MONTH<-with(otp, month.abb[PERIOD_MONTH])
+
+head(otp)
+```
+
+## Analysis
+
+For this analysis, MTA subway data was used from 2011-2017 during the weekdays. The goal of the final project on MTA Individual subway line data is to analyze the on-time performance of individual subway lines. My objective of this analysis is to find out in what years/months did subway perform worst/best.
+```{r}
+# check for data completeness to see how many subways were analyzed
+unique(otp$INDICATOR_NAME)
+```
+```{r}
+# 24 subways were analyzed over 12 months so each year should have 288 values
+table(otp$PERIOD_YEAR) 
+```
+```{r}
+# See if OTP was measured for all subway lines
+table(otp$INDICATOR_NAME)
+```
+
+remove the years 2009 and 2010 and standardize the remainder of the years be removing incomplete subway lines: S line 42 & the W line  
+
+```{r}
+otp.updated<-otp %>% 
+  filter(PERIOD_YEAR >= "2011", INDICATOR_NAME!= "OTP (Terminal) - W Line", INDICATOR_NAME!= "OTP (Terminal) - S Line 42 St.")
+
+# check on the data once more
+table(otp.updated$PERIOD_YEAR) 
+```
+```{r}
+table(otp.updated$PERIOD_MONTH)
+```
+
+### change line names by removing OTP (Terminal)
+
+```{r}
+otp.updated$INDICATOR_NAME<-revalue(otp.updated$INDICATOR_NAME, c("OTP (Terminal) - 1 Line" = "one" , "OTP (Terminal) - 2 Line"="two", "OTP (Terminal) - 3 Line"="three","OTP (Terminal) - 4 Line"="four","OTP (Terminal) - 5 Line"="five","OTP (Terminal) - 6 Line"="six","OTP (Terminal) - 7 Line"="seven","OTP (Terminal) - A Line"="A","OTP (Terminal) - B Line"="B","OTP (Terminal) - C Line"="C","OTP (Terminal) - E Line"="E","OTP (Terminal) - F Line"="F","OTP (Terminal) - D Line"="D","OTP (Terminal) - G Line"="G", "OTP (Terminal) - J Z Line" = "J Z","OTP (Terminal) - L Line"="L","OTP (Terminal) - M Line"="M","OTP (Terminal) - N Line"="N","OTP (Terminal) - Q Line"="Q","OTP (Terminal) - R Line"="R","OTP (Terminal) - S Fkln Line" = "S Fkln","OTP (Terminal) - S Line 42 St." = "S 42 St.","OTP (Terminal) - S Line Rock" = "S Rock", "OTP (Terminal) - W Line" = "W"))
+```
+
+
+### More data cleaning
+
+We will change the structure of some variables to factors, then compare the monthly actual OTP to the monthly target OTP to find out if the actual is greater or equal and then set the value as true.
+Continue cleaning with changing percentages to decimals and checking for missing values.
+
+```{r}
+# change the structure of certain variables to factors
+otp.updated$PERIOD_YEAR<-as.factor(otp.updated$PERIOD_YEAR)
+otp.updated$PERIOD_MONTH<-as.factor(otp.updated$PERIOD_MONTH)
+
+# compare the monthly actual OTP to the monthly target OTP and if the actual is >= then the value is true
+otp.updated$ON_TIME <- as.numeric(otp.updated$MONTHLY_ACTUAL >= otp.updated$MONTHLY_TARGET)
+
+# change percentages to decimals
+otp.updated$MONTHLY_TARGET <-otp.updated$MONTHLY_TARGET/100
+otp.updated$MONTHLY_ACTUAL <-otp.updated$MONTHLY_ACTUAL/100
+otp.updated$YTD_TARGET <-otp.updated$YTD_TARGET/100
+otp.updated$YTD_ACTUAL <-otp.updated$YTD_ACTUAL/100
+
+# approximately 20 weekdays in a month as the OTP is only measured for weekdays
+otp.updated$DAYS_ON_TIME<-otp.updated$MONTHLY_ACTUAL*20
+
+#check for any missing values
+df_status(otp.updated, print_results = TRUE)
+```
+
+### Export cleaned data
+
+Export the OPT updated to .CSV to use in the app.
+
+```{r}
+write.csv(otp.updated,'MTA_CLEANED.csv', row.names = FALSE)
+```
+
+## Visualization
+
+```{r}
+#facet wrap by year
+qplot(PERIOD_MONTH, DAYS_ON_TIME, data = otp.updated, facets = . ~ PERIOD_YEAR) + theme(axis.text.x = element_text(size = 5, angle = 90))
+```
+```{r}
+#facet wrap by year
+qplot(PERIOD_MONTH, DAYS_ON_TIME, data = otp.updated, facets = . ~ INDICATOR_NAME) + theme(axis.text.x = element_text(size = 3, angle = 90))
+```
+
+## Shiny App
+
+Using the shiny app function in R, I have taken the cleaned .CSV file to visualize the subway line performance information for the year 2017. 
+
+https://don-padmaperuma.shinyapps.io/DATA608FinalProject/
+
+I chose the year 2017 because as I analyse data on the dataset it was clear that 2017 was the poorest performing year. 
+
+## Conclusion
+
+From my visualizations I would say that over the years the on-time performance for subways became poorer, specifically in the year 2017. As I imagined the winter months, like December and even at times November, showed poor on-time performance.
+Unfortunately the data was up until 2017, buy If I had more current data for 2020 this would show a huge difference as there was a travel limitations due to the COVID pendamic. 
+
+
