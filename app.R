@@ -1,6 +1,6 @@
 library(dplyr); library(plotly); library(shiny)
 
-df<- read.csv("https://raw.githubusercontent.com/ChristinaValore/CUNY_DATA_608/master/Final%20Project/MTA_CLEANED.csv", header=TRUE, check.names = FALSE)
+df<- read.csv("https://raw.githubusercontent.com/gpadmaperuma/DATA608FinalProject/main/MTA_CLEANED.csv", header=TRUE, check.names = FALSE)
 
 # Define UI ----
 ui <- fluidPage(
